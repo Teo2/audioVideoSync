@@ -11,7 +11,7 @@ def is_sorted(data):
 		if(data[i-1] > data[i]):
 			return False
 	return True
-
+'''
 def power_set(a):
 	if len(a) == 0:
 		return [[]]
@@ -35,6 +35,7 @@ def remove_noise(data):
 	return fewest_elements_to_remove
 
 '''
+'''
 def remove_noise(data):
 	if(is_sorted(data)):
 		return []
@@ -45,18 +46,38 @@ def remove_noise(data):
 		copy = list.copy(data)
 		copy.pop(i)
 		without_i = remove_noise(copy)
-		print(without_i)
-		for j in without_i:
-			copy.pop(j)
-		if(is_sorted(copy) and len(without_i) < min_length):
+		if(len(without_i) < min_length):
 			min_length = len(without_i)
 			best_sublist_indicies = without_i
 			best_index = i
-	best_sublist_indicies.append(best_index);
+	for i in range(0,len(best_sublist_indicies)):
+		if(best_index <= best_sublist_indicies[i]):
+			best_sublist_indicies[i] += 1
+	best_sublist_indicies.append(best_index)
 	return best_sublist_indicies
 '''
-
-#print(remove_noise([1,2,24,25,4,5,26,47,48,47,49,50,51]))
+def remove_noise(data):
+	if(is_sorted(data)):
+		return []
+	worst_cost = 0.0
+	worst_index = 0
+	for i in range(0,len(data)):
+		cost = 0
+		for j in range(0,i):
+			if(data[j] > data[i]): cost += 1
+		for j in range(i+1,len(data)):
+			if(data[j] < data[i]): cost += 1
+		if(cost > worst_cost):
+			worst_index = i
+			worst_cost = cost
+	copy = list.copy(data)
+	copy.pop(worst_index)
+	indicies_to_remove = remove_noise(copy)
+	for i in range(0,len(indicies_to_remove)):
+		if(worst_index <= indicies_to_remove[i]):
+			indicies_to_remove[i] += 1
+	indicies_to_remove.append(worst_index)
+	return indicies_to_remove
 
 def to_time(seconds):
     if int(seconds) % 60 < 10:
@@ -79,11 +100,12 @@ def get_volume_array(audio, clip_length):
 video_volumes = get_volume_array(video.audio, clip_length)
 audio_volumes = get_volume_array(audio, clip_length)
 
-steepness = 2.7
+steepness = 3
+scale = 1
 def sigmoid(x):
 	if math.isnan(x) or math.isinf(x):
-		return 1
-	return 1/(1 + steepness ** (-x))
+		return scale
+	return scale/(1 + steepness ** (-x))
 
 def get_cost(ratio1, ratio2):
 	return (sigmoid(ratio1) - sigmoid(ratio2)) ** 2
@@ -91,31 +113,39 @@ def get_cost(ratio1, ratio2):
 video_times = [0.0]
 audio_times = [0.0]
 
-sample_size = 50
-for sample_start in range(50,len(audio_volumes) - sample_size, 50):
-    volume_change_ratios = [0.0] * (sample_size - 1)
-    for i in range(sample_start + 1, sample_start + sample_size - 1):
-        volume_change_ratios[i - sample_start] = audio_volumes[i] / audio_volumes[i-1]
+sample_length = 250
+cost_cutoff = 100
+sample_distance = 500
+for sample_start in range(sample_distance,len(audio_volumes) - sample_length, sample_distance):
+	average_audio_volume = 0.0
+	for i in range(0, sample_length):
+		average_audio_volume += audio_volumes[sample_start + i]
+	average_audio_volume /= sample_length
+	best_match_index = 0
+	best_cost = sys.float_info.max
 
-    best_match_index = 0;
-    best_cost = sys.float_info.max
-    for i in range(0,len(video_volumes) - sample_size):
-        cost = 0
-        for j in range(i,i + sample_size - 1):
-            video_volume_change_ratio = video_volumes[j] / video_volumes[j - 1]
-            cost += get_cost(volume_change_ratios[j-i],video_volume_change_ratio)
-        if cost <= best_cost:
-            best_cost = cost
-            best_match_index = i
-    print("Best " + str(best_cost) + " at " + to_time(best_match_index / clip_length))
-    if(best_cost <= 1):
-    	audio_times.append(sample_start * clip_length)
-    	video_times.append(best_match_index * clip_length)
+	for i in range(0,len(video_volumes) - sample_length):
+		cost = 0
+		average_video_volume = 0.0
+		for j in range(0, sample_length):
+			average_video_volume += video_volumes[i + j]
+		average_video_volume /= sample_length
+
+		for j in range(0,sample_length):
+			cost += get_cost(audio_volumes[sample_start + j] / average_audio_volume, video_volumes[i + j] / average_video_volume)
+		if cost <= best_cost:
+			best_cost = cost
+			best_match_index = i
+	print("Best cost is " + str(best_cost) + " which matches " +  to_time(sample_start * clip_length) + " with "+ to_time(best_match_index * clip_length))
+	if(best_cost <= cost_cutoff):
+		audio_times.append(sample_start * clip_length)
+		video_times.append(best_match_index * clip_length)
 
 audio_times.append(len(audio_volumes) * clip_length)
 video_times.append(len(video_volumes) * clip_length)
-
-for i in remove_noise(video_times):
+indicies_to_remove = remove_noise(video_times)
+indicies_to_remove.sort(reverse = True)
+for i in indicies_to_remove:
 	video_times.pop(i)
 	audio_times.pop(i)
 
