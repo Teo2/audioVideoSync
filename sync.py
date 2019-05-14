@@ -107,8 +107,8 @@ def sigmoid(x):
 		return scale
 	return scale/(1 + steepness ** (-x))
 
-def get_cost(ratio1, ratio2):
-	return (sigmoid(ratio1) - sigmoid(ratio2)) ** 2
+def get_cost(volume1, volume2):
+	return (sigmoid(volume1) - sigmoid(volume2)) ** 2
 
 video_times = [0.0]
 audio_times = [0.0]
