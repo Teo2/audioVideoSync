@@ -113,9 +113,39 @@ def get_cost(volume1, volume2):
 video_times = [0.0]
 audio_times = [0.0]
 
-sample_length = 250
+sample_length = 50
 cost_cutoff = 100
-sample_distance = 500
+sample_distance = 20
+
+#Detecting video parts not in audio
+for sample_start in range(0,len(audio_volumes) - sample_length, sample_distance):
+	average_video_volume = 0.0
+	for i in range(0, sample_length):
+		average_video_volume += video_volumes[sample_start + i]
+	average_video_volume /= sample_length
+	best_match_index = 0
+	best_cost = sys.float_info.max
+
+	for i in range(0,len(audio_volumes) - sample_length):
+		cost = 0
+		average_audio_volume = 0.0
+		for j in range(0, sample_length):
+			average_audio_volume += audio_volumes[i + j]
+		average_audio_volume /= sample_length
+
+		for j in range(0,sample_length):
+			cost += get_cost(video_volumes[sample_start + j] / average_video_volume, audio_volumes[i + j] / average_audio_volume)
+		if cost <= best_cost:
+			best_cost = cost
+			best_match_index = i
+	print("Best cost is " + str(best_cost) + " which matches " +  to_time(sample_start * clip_length) + " with "+ to_time(best_match_index * clip_length))
+	#if(best_cost <= cost_cutoff):
+	#	audio_times.append(sample_start * clip_length)
+	#	video_times.append(best_match_index * clip_length)
+
+print("DONE")
+
+
 for sample_start in range(sample_distance,len(audio_volumes) - sample_length, sample_distance):
 	average_audio_volume = 0.0
 	for i in range(0, sample_length):
